@@ -15,6 +15,8 @@ interface NavbarProps {
   isRefreshing?: boolean;
   connectionStatus?: "connecting" | "connected" | "reconnecting" | "disconnected";
   lastUpdated?: string;
+  reportDate?: string;
+  records?: any[];
 }
 
 export default function Navbar({
@@ -29,12 +31,32 @@ export default function Navbar({
   onRefresh,
   isRefreshing = false,
   connectionStatus = "connecting",
-  lastUpdated
+  lastUpdated,
+  reportDate,
+  records
 }: NavbarProps) {
-  const months = ["December 2024", "January 2025", "February 2025", "March 2025", "April 2025", "May 2025"];
-  const sites = ["Site GM", "Site Corp", "Site Logistics", "Site Assembly"];
-  const regions = ["North", "South", "East", "West"];
-  const facilities = ["Kalash NDC", "Refinery Unit 1", "Logistics Hub", "Component Depot"];
+  let months = ["December 2024", "January 2025", "February 2025", "March 2025", "April 2025", "May 2025"];
+  let sites = ["Site GM", "Site Corp", "Site Logistics", "Site Assembly"];
+  let regions = ["North", "South", "East", "West"];
+  let facilities = ["Kalash NDC", "Refinery Unit 1", "Logistics Hub", "Component Depot"];
+
+  if (records && records.length > 0) {
+    const uniqueMonths = Array.from(new Set(records.map(r => r.reportMonth).filter(Boolean))) as string[];
+    const uniqueSites = Array.from(new Set(records.flatMap(r => [r.siteGM, r.siteLead, r.ehsLead]).filter(Boolean))) as string[];
+    const uniqueRegions = Array.from(new Set(records.map(r => r.region).filter(Boolean))) as string[];
+    const uniqueFacilities = Array.from(new Set(records.map(r => r.facility).filter(Boolean))) as string[];
+
+    if (uniqueMonths.length > 0) months = uniqueMonths;
+    if (uniqueSites.length > 0) sites = uniqueSites;
+    if (uniqueRegions.length > 0) regions = uniqueRegions;
+    if (uniqueFacilities.length > 0) facilities = uniqueFacilities;
+  }
+
+  // Ensure current active selections are present in the list of options to prevent blank dropdown UI
+  if (month && !months.includes(month)) months.push(month);
+  if (site && !sites.includes(site)) sites.push(site);
+  if (region && !regions.includes(region)) regions.push(region);
+  if (facility && !facilities.includes(facility)) facilities.push(facility);
 
   return (
     <header className="bg-[#050811]/70 backdrop-blur-xl border-b border-slate-850 text-slate-100 px-6 py-4 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 sticky top-0 z-20 shadow-lg shadow-black/10 select-none">
@@ -175,7 +197,7 @@ export default function Navbar({
             <Calendar size={12} className="text-slate-400 animate-pulse" />
             <div className="text-left font-sans">
               <div className="text-[8px] text-slate-500 font-bold uppercase tracking-wider leading-none">Report Date</div>
-              <div className="text-[10px] text-slate-200 font-bold mt-0.5 leading-none">18-May-2025</div>
+              <div className="text-[10px] text-slate-200 font-bold mt-0.5 leading-none">{reportDate || "18-May-2025"}</div>
             </div>
           </div>
 

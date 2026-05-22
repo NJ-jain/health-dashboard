@@ -19,9 +19,10 @@ import {
 interface SidebarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
+  ehsLead?: string;
 }
 
-export default function Sidebar({ activeTab = "dashboard", onTabChange }: SidebarProps) {
+export default function Sidebar({ activeTab = "dashboard", onTabChange, ehsLead }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const menuItems = [
@@ -33,6 +34,11 @@ export default function Sidebar({ activeTab = "dashboard", onTabChange }: Sideba
     { id: "reports", label: "EHS Reports", icon: FileSpreadsheet },
     { id: "settings", label: "System Settings", icon: Settings },
   ];
+
+  // User Session Profile (Footer)
+  const initials = ehsLead
+    ? ehsLead.split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    : "AS";
 
   return (
     <motion.aside 
@@ -112,7 +118,8 @@ export default function Sidebar({ activeTab = "dashboard", onTabChange }: Sideba
               
               {!isCollapsed && (
                 <span className="truncate font-sans font-medium tracking-wide">
-                  {item.label}
+                  {item.label
+                  }
                 </span>
               )}
             </button>
@@ -146,16 +153,15 @@ export default function Sidebar({ activeTab = "dashboard", onTabChange }: Sideba
         )}
       </AnimatePresence>
 
-      {/* User Session Profile (Footer) */}
       <div className={`p-4 border-t border-slate-800/30 bg-slate-900/10 flex items-center ${
         isCollapsed ? "justify-center" : "gap-3.5"
       } overflow-hidden shrink-0`}>
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-cyan-600 to-blue-600 flex items-center justify-center font-black text-slate-100 text-xs shadow-[0_0_12px_rgba(6,182,212,0.25)] shrink-0 font-mono">
-          AS
+          {initials}
         </div>
         {!isCollapsed && (
           <div className="truncate flex-1">
-            <div className="text-xs font-bold text-slate-200 truncate font-sans">Mr. A. Sharma</div>
+            <div className="text-xs font-bold text-slate-200 truncate font-sans">{ehsLead || "Mr. A. Sharma"}</div>
             <div className="text-[9px] text-slate-500 font-bold font-mono uppercase tracking-wider truncate mt-0.5">EHS Lead Officer</div>
           </div>
         )}

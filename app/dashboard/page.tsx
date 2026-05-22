@@ -106,6 +106,19 @@ export default function DashboardPage() {
             const payload = JSON.parse(event.data);
             console.log("[Dashboard] SSE Received realtime update:", payload);
             setRealtimeData(payload);
+            
+            // Sync local selector states with dynamic sheet properties
+            if (payload.facility) setFacility(payload.facility);
+            if (payload.region) setRegion(payload.region);
+            if (payload.reportMonth) setMonth(payload.reportMonth);
+            if (payload.siteGM) {
+              setSite(payload.siteGM);
+            } else if (payload.siteLead) {
+              setSite(payload.siteLead);
+            } else {
+              setSite("Site GM");
+            }
+            
             setConnectionStatus("connected");
             lastEventTime = Date.now();
             retryDelay = 1000; // Reset retry delay on success
@@ -446,7 +459,67 @@ export default function DashboardPage() {
 
   // Fallback to local re-computed mock data if SSE is not yet loaded or disconnected
   const localMockData = getDashboardData();
-  const rawData = realtimeData || localMockData;
+  
+  let rawData: DashboardData | null = null;
+  
+  if (realtimeData && realtimeData.records && realtimeData.records.length > 0) {
+    // Try to find an exact match matching all filters
+    const exactMatch = realtimeData.records.find(r => 
+      (r.reportMonth === month) &&
+      (r.facility === facility) &&
+      (r.region === region) &&
+      (r.siteGM === site || r.siteLead === site || r.ehsLead === site)
+    );
+    
+    if (exactMatch) {
+      rawData = exactMatch;
+    } else {
+      // Fallback 1: Match by facility, region, and month
+      const matchThree = realtimeData.records.find(r => 
+        (r.reportMonth === month) &&
+        (r.facility === facility) &&
+        (r.region === region)
+      );
+      if (matchThree) {
+        rawData = matchThree;
+      } else {
+        // Fallback 2: Match by facility and month
+        const matchFacilityMonth = realtimeData.records.find(r => 
+          (r.reportMonth === month) &&
+          (r.facility === facility)
+        );
+        if (matchFacilityMonth) {
+          rawData = matchFacilityMonth;
+        } else {
+          // Fallback 3: Match just facility
+          const matchFacility = realtimeData.records.find(r => r.facility === facility);
+          if (matchFacility) {
+            rawData = matchFacility;
+          } else {
+            // Fallback 4: Match just month
+            const matchMonth = realtimeData.records.find(r => r.reportMonth === month);
+            if (matchMonth) {
+              rawData = matchMonth;
+            } else {
+              // Fallback 5: First available record
+              rawData = realtimeData.records[0] || realtimeData;
+            }
+          }
+        }
+      }
+    }
+  } else {
+    rawData = realtimeData || localMockData;
+  }
+
+  // Preserve records inside the resolved rawData so that they can be passed to Navbar
+  if (rawData && realtimeData && realtimeData.records) {
+    rawData = {
+      ...rawData,
+      records: realtimeData.records
+    };
+  }
+
   const dashboardData = enrichRealtimeIcons(rawData) as DashboardData;
 
   const isLoading = (connectionStatus === "connecting" || connectionStatus === "reconnecting") && !realtimeData;
@@ -454,7 +527,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#070D19] flex font-sans overflow-x-hidden text-slate-100 selection:bg-cyan-500 selection:text-white">
       {/* Sidebar Panel */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} ehsLead={dashboardData.ehsLead} />
 
       {/* Main Content Workspace */}
       <main className="flex-1 flex flex-col min-w-0 relative">
@@ -472,6 +545,8 @@ export default function DashboardPage() {
           isRefreshing={isRefreshing}
           connectionStatus={connectionStatus}
           lastUpdated={dashboardData.lastUpdated}
+          reportDate={dashboardData.reportDate}
+          records={dashboardData?.records}
         />
 
         {/* Dynamic Loader screen overlay */}
