@@ -67,6 +67,34 @@ export default function DashboardPage() {
   const [realtimeData, setRealtimeData] = useState<DashboardData | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "reconnecting" | "disconnected">("connecting");
 
+  // Load cached realtime data from localStorage on mount to prevent state loss across reloads
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem("ehs_realtime_data");
+      if (cached) {
+        try {
+          const payload = JSON.parse(cached);
+          console.log("[Dashboard] Restoring EHS telemetry state from localStorage cache:", payload);
+          setRealtimeData(payload);
+          
+          // Sync selector states with the restored cache
+          if (payload.facility) setFacility(payload.facility);
+          if (payload.region) setRegion(payload.region);
+          if (payload.reportMonth) setMonth(payload.reportMonth);
+          if (payload.siteGM) {
+            setSite(payload.siteGM);
+          } else if (payload.siteLead) {
+            setSite(payload.siteLead);
+          } else if (payload.ehsLead) {
+            setSite(payload.ehsLead);
+          }
+        } catch (err) {
+          console.error("[Dashboard] Error restoring cached state:", err);
+        }
+      }
+    }
+  }, []);
+
   // Establish persistent EventSource SSE stream with explicit automatic reconnection
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -115,8 +143,15 @@ export default function DashboardPage() {
               setSite(payload.siteGM);
             } else if (payload.siteLead) {
               setSite(payload.siteLead);
+            } else if (payload.ehsLead) {
+              setSite(payload.ehsLead);
             } else {
               setSite("Site GM");
+            }
+            
+            // Cache update into localStorage
+            if (typeof window !== "undefined") {
+              localStorage.setItem("ehs_realtime_data", JSON.stringify(payload));
             }
             
             setConnectionStatus("connected");
@@ -397,6 +432,13 @@ export default function DashboardPage() {
     ];
 
     return {
+      facility: "Kalash NDC",
+      region: "North",
+      reportMonth: "May 2025",
+      reportDate: "18-May-2025",
+      siteGM: "Site GM",
+      siteLead: "Site Lead",
+      ehsLead: "Mr. A. Sharma",
       kpiStats,
       incidentBreakdown,
       incidentTrend,
