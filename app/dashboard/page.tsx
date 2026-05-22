@@ -71,51 +71,102 @@ export default function DashboardPage() {
   useEffect(() => {
     let eventSource: EventSource | null = null;
     let retryTimeout: NodeJS.Timeout | null = null;
+    let heartbeatCheckInterval: NodeJS.Timeout | null = null;
     let isUnmounted = false;
+    let retryDelay = 1000;
+    let lastEventTime = Date.now();
 
     const connect = () => {
       if (isUnmounted) return;
-      console.log("[Dashboard] Initializing Realtime EventSource: /api/stream");
+      
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+      const streamUrl = `${backendUrl}/api/stream`;
+      
+      console.log(`[Dashboard] Initializing Realtime EventSource: ${streamUrl}`);
       setConnectionStatus("connecting");
       
-      eventSource = new EventSource("/api/stream");
+      try {
+        eventSource = new EventSource(streamUrl);
+        lastEventTime = Date.now();
 
-      eventSource.addEventListener("connected", (event: any) => {
-        try {
-          const payload = JSON.parse(event.data);
-          console.log("[Dashboard] SSE Handshake established. Client ID:", payload.clientId);
+        eventSource.addEventListener("connected", (event: any) => {
+          try {
+            const payload = JSON.parse(event.data);
+            console.log("[Dashboard] SSE Handshake established. Client ID:", payload.clientId);
+            setConnectionStatus("connected");
+            lastEventTime = Date.now();
+            retryDelay = 1000; // Reset retry delay on success
+          } catch (err) {
+            console.error("[Dashboard] Error parsing SSE connected event:", err);
+          }
+        });
+
+        eventSource.addEventListener("dashboard_update", (event: any) => {
+          try {
+            const payload = JSON.parse(event.data);
+            console.log("[Dashboard] SSE Received realtime update:", payload);
+            setRealtimeData(payload);
+            setConnectionStatus("connected");
+            lastEventTime = Date.now();
+            retryDelay = 1000; // Reset retry delay on success
+          } catch (err) {
+            console.error("[Dashboard] Error parsing SSE dashboard data:", err);
+          }
+        });
+
+        eventSource.addEventListener("ping", () => {
+          // Keep-alive received
+          lastEventTime = Date.now();
           setConnectionStatus("connected");
-        } catch (err) {
-          console.error("[Dashboard] Error parsing SSE connected event:", err);
-        }
-      });
+        });
 
-      eventSource.addEventListener("dashboard_update", (event: any) => {
-        try {
-          const payload = JSON.parse(event.data);
-          console.log("[Dashboard] SSE Received realtime update:", payload);
-          setRealtimeData(payload);
-          setConnectionStatus("connected");
-        } catch (err) {
-          console.error("[Dashboard] Error parsing SSE dashboard data:", err);
-        }
-      });
+        eventSource.onerror = (err) => {
+          console.warn(`[Dashboard] SSE connection failed. Retrying in ${retryDelay}ms...`, err);
+          setConnectionStatus("reconnecting");
+          
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          
+          if (retryTimeout) {
+            clearTimeout(retryTimeout);
+          }
+          
+          retryTimeout = setTimeout(() => {
+            console.log("[Dashboard] Reconnection attempt triggered...");
+            retryDelay = Math.min(retryDelay * 2, 30000); // Exponential backoff
+            connect();
+          }, retryDelay);
+        };
+      } catch (err) {
+        console.error("[Dashboard] EventSource initiation failed:", err);
+        setConnectionStatus("disconnected");
+      }
+    };
 
-      eventSource.onerror = (err) => {
-        console.warn("[Dashboard] SSE connection failed, attempting automatic background reconnect...", err);
+    // Periodic watchdog check to verify heartbeats/activities are fresh
+    heartbeatCheckInterval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - lastEventTime;
+      
+      // If we haven't received any SSE signals within 35 seconds, connection is considered dead
+      if (elapsed > 35000 && eventSource) {
+        console.warn(`[Dashboard] Watchdog alert: Stale connection detected (${Math.round(elapsed / 1000)}s since last event). Reconnecting...`);
         setConnectionStatus("reconnecting");
+        
         if (eventSource) {
           eventSource.close();
+          eventSource = null;
         }
+        
         if (retryTimeout) {
           clearTimeout(retryTimeout);
         }
-        retryTimeout = setTimeout(() => {
-          console.log("[Dashboard] Reconnection attempt triggered...");
-          connect();
-        }, 3500);
-      };
-    };
+        
+        connect();
+      }
+    }, 5000);
 
     connect();
 
@@ -128,6 +179,9 @@ export default function DashboardPage() {
       }
       if (retryTimeout) {
         clearTimeout(retryTimeout);
+      }
+      if (heartbeatCheckInterval) {
+        clearInterval(heartbeatCheckInterval);
       }
     };
   }, []);
