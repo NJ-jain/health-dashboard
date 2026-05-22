@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -13,18 +13,27 @@ import {
   ChevronRight,
   ShieldAlert,
   Flame,
-  FileSpreadsheet
+  FileSpreadsheet,
+  X
 } from "lucide-react";
-
+ 
 interface SidebarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   ehsLead?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
-
-export default function Sidebar({ activeTab = "dashboard", onTabChange, ehsLead }: SidebarProps) {
+ 
+export default function Sidebar({ 
+  activeTab = "dashboard", 
+  onTabChange, 
+  ehsLead,
+  isOpen = false,
+  onClose
+}: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+ 
   const menuItems = [
     { id: "dashboard", label: "EHS Dashboard", icon: LayoutDashboard },
     { id: "incidents", label: "Incident Tracking", icon: AlertTriangle },
@@ -34,54 +43,84 @@ export default function Sidebar({ activeTab = "dashboard", onTabChange, ehsLead 
     { id: "reports", label: "EHS Reports", icon: FileSpreadsheet },
     { id: "settings", label: "System Settings", icon: Settings },
   ];
-
+ 
   // User Session Profile (Footer)
   const initials = ehsLead
     ? ehsLead.split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : "AS";
-
+ 
   return (
-    <motion.aside 
-      animate={{ width: isCollapsed ? 76 : 260 }}
-      transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
-      className="bg-[#070b14]/95 border-r border-slate-800/40 text-slate-100 flex flex-col h-screen sticky top-0 z-30 shrink-0 relative backdrop-blur-md shadow-2xl shadow-black/80"
-    >
-      {/* Collapse/Expand Floating Edge Button */}
-      <button 
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute top-20 -right-3.5 bg-[#0a101e] border border-slate-800/80 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 p-1.5 rounded-full z-40 hidden md:flex items-center justify-center shadow-lg shadow-black/50 cursor-pointer transition-all duration-200"
-        title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-      >
-        {isCollapsed ? (
-          <ChevronRight size={11} className="stroke-[3px]" />
-        ) : (
-          <ChevronLeft size={11} className="stroke-[3px]" />
+    <>
+      {/* Mobile Glass Backdrop Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-[#050811]/70 backdrop-blur-md z-40 lg:hidden cursor-pointer"
+          />
         )}
-      </button>
+      </AnimatePresence>
 
-      {/* Brand logo header */}
-      <div className={`h-16 flex items-center border-b border-slate-800/30 bg-slate-900/10 px-4 ${
-        isCollapsed ? "justify-center" : "justify-between"
-      }`}>
-        <div className="flex items-center gap-3.5 overflow-hidden">
-          <div className="p-2 bg-gradient-to-tr from-cyan-950/40 to-blue-950/20 border border-cyan-500/30 rounded-xl text-cyan-400 shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.15)] cyber-glow-pulse">
-            <ShieldAlert size={18} className="stroke-[2.2px]" />
+      <motion.aside 
+        animate={{ 
+          width: isCollapsed ? 76 : 260
+        }}
+        transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
+        className={`bg-[#070b14]/95 border-r border-slate-800/40 text-slate-100 flex flex-col h-screen shrink-0 backdrop-blur-md shadow-2xl shadow-black/80 z-50 fixed top-0 bottom-0 left-0 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:z-30 lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {/* Collapse/Expand Floating Edge Button */}
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute top-20 -right-3.5 bg-[#0a101e] border border-slate-800/80 hover:border-cyan-500/50 text-slate-400 hover:text-cyan-400 p-1.5 rounded-full z-40 hidden lg:flex items-center justify-center shadow-lg shadow-black/50 cursor-pointer transition-all duration-200"
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          {isCollapsed ? (
+            <ChevronRight size={11} className="stroke-[3px]" />
+          ) : (
+            <ChevronLeft size={11} className="stroke-[3px]" />
+          )}
+        </button>
+ 
+        {/* Brand logo header */}
+        <div className={`h-16 flex items-center border-b border-slate-800/30 bg-slate-900/10 px-4 ${
+          isCollapsed && !isOpen ? "justify-center" : "justify-between"
+        }`}>
+          <div className="flex items-center gap-3.5 overflow-hidden">
+            <div className="p-2 bg-gradient-to-tr from-cyan-950/40 to-blue-950/20 border border-cyan-500/30 rounded-xl text-cyan-400 shrink-0 shadow-[0_0_15px_rgba(6,182,212,0.15)] cyber-glow-pulse">
+              <ShieldAlert size={18} className="stroke-[2.2px]" />
+            </div>
+            <AnimatePresence>
+              {(!isCollapsed || isOpen) && (
+                <motion.span 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="font-black text-[13px] tracking-widest uppercase bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent truncate font-mono"
+                >
+                  SURAKSHA EHS
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.span 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-                className="font-black text-[13px] tracking-widest uppercase bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent truncate font-mono"
-              >
-                SURAKSHA EHS
-              </motion.span>
-            )}
-          </AnimatePresence>
+
+          {/* Mobile close toggle button */}
+          {isOpen && onClose && (
+            <button 
+              onClick={onClose}
+              className="lg:hidden p-1.5 text-slate-450 hover:text-cyan-450 hover:bg-slate-800/40 rounded-xl transition-all duration-200 cursor-pointer"
+              title="Close Drawer"
+            >
+              <X size={16} className="stroke-[2.5px]" />
+            </button>
+          )}
         </div>
-      </div>
+
 
       {/* Navigation items */}
       <nav className={`flex-1 py-6 space-y-1 overflow-y-auto custom-scrollbar px-3`}>
@@ -167,5 +206,7 @@ export default function Sidebar({ activeTab = "dashboard", onTabChange, ehsLead 
         )}
       </div>
     </motion.aside>
+    </>
   );
 }
+

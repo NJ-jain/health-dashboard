@@ -62,6 +62,8 @@ export default function DashboardPage() {
   const [region, setRegion] = useState("North");
   const [facility, setFacility] = useState("Kalash NDC");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
 
   // Realtime SSE State
   const [realtimeData, setRealtimeData] = useState<DashboardData | null>(null);
@@ -569,7 +571,16 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#070D19] flex font-sans overflow-x-hidden text-slate-100 selection:bg-cyan-500 selection:text-white">
       {/* Sidebar Panel */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} ehsLead={dashboardData.ehsLead} />
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          setIsMobileSidebarOpen(false); // Auto close sidebar drawer on mobile navigation click
+        }} 
+        ehsLead={dashboardData.ehsLead} 
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+      />
 
       {/* Main Content Workspace */}
       <main className="flex-1 flex flex-col min-w-0 relative">
@@ -589,7 +600,10 @@ export default function DashboardPage() {
           lastUpdated={dashboardData.lastUpdated}
           reportDate={dashboardData.reportDate}
           records={dashboardData?.records}
+          isSidebarOpen={isMobileSidebarOpen}
+          onToggleSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
         />
+
 
         {/* Dynamic Loader screen overlay */}
         {isRefreshing && (
